@@ -3,20 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#f5f6f2">
+  <meta name="theme-color" content="#121714">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Капеєчка">
   <title>Капеєчка</title>
-  <link rel="manifest" href="static/manifest.webmanifest?v=2">
+  <link rel="manifest" href="static/manifest.webmanifest?v=3">
   <link rel="icon" href="static/icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="static/style.css?v=3">
+  <link rel="stylesheet" href="static/style.css?v=4">
 </head>
 <body>
   <div class="app" id="app" hidden>
     <header class="topbar">
       <div class="brand"><span class="brand-mark">₴</span><span>капеєчка</span></div>
-      <span class="local-badge">Збережено на iPhone</span>
     </header>
 
     <main>
@@ -36,21 +35,18 @@
           <article class="summary-card"><span class="summary-icon income-icon">↙</span><span class="muted">Доходи</span><strong id="income-total">0,00 zł</strong></article>
           <article class="summary-card"><span class="summary-icon expense-icon">↗</span><span class="muted">Витрати</span><strong id="expense-total">0,00 zł</strong></article>
         </div>
-        <section class="analytics-card" aria-label="Статистика за місяць">
+        <section class="analytics-card" aria-label="Загальна діаграма витрат за місяць">
           <div class="analytics-heading">
-            <div><p class="eyebrow">НА ОЧАХ</p><h2>Куди йдуть гроші</h2></div>
+            <div><p class="eyebrow">ЗАГАЛОМ ЗА МІСЯЦЬ</p><h2>Витрати за категоріями</h2></div>
             <span class="analytics-period" id="analytics-month"></span>
           </div>
           <div class="donut-layout">
-            <div class="donut-chart" id="expense-donut" role="img" aria-label="Витрати за категоріями">
+            <div class="donut-chart" id="home-expense-donut" role="img" aria-label="Загальна діаграма витрат за категоріями">
               <div class="donut-center"><strong id="donut-total">0,00 PLN</strong><span>витрати</span></div>
             </div>
-            <div class="chart-legend" id="expense-legend"></div>
+            <div class="chart-legend" id="home-expense-legend"></div>
           </div>
-          <p class="chart-empty" id="chart-empty" hidden>Додай витрату — тут з’явиться діаграма.</p>
-          <div class="chart-divider"></div>
-          <h3 class="flow-title">Доходи та витрати</h3>
-          <div class="flow-chart" id="flow-chart"></div>
+          <p class="chart-empty" id="home-chart-empty" hidden>Додай витрати — тут з’явиться діаграма.</p>
         </section>
         <div class="section-heading"><div><p class="eyebrow">ОСТАННІ ЗАПИСИ</p><h2>Операції</h2></div><button class="text-button" data-open="history">Усі <span>→</span></button></div>
         <div class="transaction-list" id="recent-list"></div>
@@ -64,13 +60,43 @@
           <span id="history-month"></span>
           <button class="month-arrow" data-shift="1" aria-label="Наступний місяць">›</button>
         </div>
-        <div class="filter-tabs" id="type-tabs">
-          <button class="filter active" data-kind="all">Усі</button><button class="filter" data-kind="expense">Витрати</button><button class="filter" data-kind="income">Доходи</button>
+        <div class="filter-tabs history-view-tabs" id="history-view-tabs">
+          <button class="filter active" data-history-view="transactions">Операції</button><button class="filter" data-history-view="categories">Категорії</button><button class="filter" data-history-view="charts">Діаграми</button>
         </div>
-        <label class="select-wrap" id="category-filter-wrap" hidden><span>Категорія витрат</span><select id="category-filter"><option value="">Усі категорії</option></select></label>
-        <div class="history-caption"><span id="history-caption"></span><span id="history-count"></span></div>
-        <div class="transaction-list" id="history-list"></div>
-        <div class="empty-state" id="history-empty" hidden><span>⌕</span><b>Тут поки порожньо</b><p>За вибраний період операцій немає.</p></div>
+        <div id="history-transactions-view">
+          <div class="filter-tabs" id="type-tabs">
+            <button class="filter active" data-kind="all">Усі</button><button class="filter" data-kind="expense">Витрати</button><button class="filter" data-kind="income">Доходи</button>
+          </div>
+          <label class="select-wrap" id="category-filter-wrap" hidden><span>Категорія витрат</span><select id="category-filter"><option value="">Усі категорії</option></select></label>
+          <div class="history-caption"><span id="history-caption"></span><span id="history-count"></span></div>
+          <div class="transaction-list" id="history-list"></div>
+          <div class="empty-state" id="history-empty" hidden><span>⌕</span><b>Тут поки порожньо</b><p>За вибраний період операцій немає.</p></div>
+        </div>
+        <div id="history-categories-view" hidden>
+          <div class="category-list" id="history-category-list"></div>
+          <div id="history-category-detail" hidden>
+            <button class="text-button category-back" id="category-back">← Усі категорії</button>
+            <div class="category-detail-summary"><h2 id="history-category-title"></h2><strong id="history-category-total"></strong></div>
+            <div class="transaction-list" id="history-category-transactions"></div>
+            <div class="empty-state" id="history-category-empty" hidden><b>За цей місяць витрат немає</b></div>
+          </div>
+          <div class="empty-state" id="history-categories-empty" hidden><b>Поки немає витрат за цей місяць</b></div>
+        </div>
+        <div id="history-charts-view" hidden>
+          <label class="select-wrap history-chart-select"><span>Діаграма</span><select id="history-chart-select"><option value="categories">Витрати за категоріями</option><option value="comparison">Доходи та витрати</option></select></label>
+          <div id="history-chart-categories" class="history-chart-card">
+            <div class="donut-layout history-donut-layout">
+              <div class="donut-chart" id="history-expense-donut" role="img" aria-label="Детальні витрати за категоріями">
+                <div class="donut-center"><strong id="history-donut-total">0,00 PLN</strong><span>витрати</span></div>
+              </div>
+              <div class="chart-legend" id="history-expense-legend"></div>
+            </div>
+            <p class="chart-empty" id="history-chart-empty" hidden>Додай витрати — тут з’явиться діаграма.</p>
+          </div>
+          <div id="history-chart-comparison" class="history-chart-card" hidden>
+            <div class="flow-chart" id="history-flow-chart"></div>
+          </div>
+        </div>
       </section>
 
       <section class="screen" id="screen-categories">
@@ -113,6 +139,6 @@
     </section>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="static/app.js?v=3" defer></script>
+  <script src="static/app.js?v=4" defer></script>
 </body>
 </html>
