@@ -1,14 +1,12 @@
 {
   "name": "Капеєчка — особисті фінанси",
   "short_name": "Капеєчка",
-  "description": "Особистий облік доходів і витрат",
+  "description": "Особистий облік доходів і витрат на цьому iPhone",
   "lang": "uk",
-  "start_url": "/kapejechka-iphone/",
-  "scope": "/kapejechka-iphone/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#f5f6f2",
-  "theme_color": "#245d4d",
-  "icons": [
-    { "src": "/kapejechka-iphone/static/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
-  ]
+  "background_color": "#111714",
+  "theme_color": "#34755e",
+  "icons": [{ "src": "static/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
 }
