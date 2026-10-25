@@ -120,6 +120,39 @@ function fillCategorySelect(select, selected = "") {
   select.innerHTML = categories.map((name) => `<option value="${escapeHtml(name)}" ${name === selected ? "selected" : ""}>${escapeHtml(name)}</option>`).join("");
 }
 
+function renderCharts(data) {
+  const colors = ["#245d4d", "#74a987", "#d9b775", "#d88b68", "#8a9bc9", "#aa83b8", "#69aeb2", "#d5a8a0"];
+  const rows = data.category_totals.filter((row) => Number(row.total) > 0);
+  const total = rows.reduce((sum, row) => sum + Number(row.total), 0);
+  $("#analytics-month").textContent = monthLabel(state.month);
+  $("#donut-total").textContent = money(total);
+  $("#chart-empty").hidden = total > 0;
+
+  let cursor = 0;
+  const slices = rows.map((row, index) => {
+    const start = cursor;
+    cursor += Number(row.total) / (total || 1) * 100;
+    return `${colors[index % colors.length]} ${start}% ${cursor}%`;
+  });
+  $("#expense-donut").style.background = slices.length ? `conic-gradient(${slices.join(", ")})` : "conic-gradient(#e8ebe5 0% 100%)";
+
+  const shown = rows.slice(0, 4);
+  const rest = rows.slice(4);
+  const legendRows = shown.map((row, index) => ({ name: row.name, total: Number(row.total), color: colors[index % colors.length] }));
+  if (rest.length) legendRows.push({ name: "Інші", total: rest.reduce((sum, row) => sum + Number(row.total), 0), color: "#b8c6be" });
+  $("#expense-legend").innerHTML = legendRows.map((row) => `<div class="legend-row"><span class="legend-dot" style="background:${row.color}"></span><span class="legend-name">${escapeHtml(row.name)}</span><strong>${escapeHtml(money(row.total))}</strong></div>`).join("")
+    || '<span class="legend-placeholder">Поки без витрат</span>';
+
+  const income = Number(data.income.amount) || 0;
+  const expenses = Number(data.expenses.amount) || 0;
+  const max = Math.max(income, expenses);
+  const bar = (label, value, type) => {
+    const width = max ? Math.max(value > 0 ? 4 : 0, value / max * 100) : 0;
+    return `<div class="flow-row"><div class="flow-meta"><span>${label}</span><strong>${escapeHtml(money(value))}</strong></div><div class="flow-track"><span class="flow-bar ${type}" style="width:${width}%"></span></div></div>`;
+  };
+  $("#flow-chart").innerHTML = bar("Доходи", income, "income") + bar("Витрати", expenses, "expense");
+}
+
 function draw() {
   if (!state.data) return;
   const data = state.data;
@@ -132,6 +165,7 @@ function draw() {
   $("#balance").classList.toggle("negative", total < 0);
   $("#income-total").textContent = money(data.income.amount);
   $("#expense-total").textContent = money(data.expenses.amount);
+  renderCharts(data);
   const latest = [...data.transactions].sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id - a.id);
   $("#recent-list").innerHTML = latest.slice(0, 5).map(transactionMarkup).join("");
   $("#home-empty").hidden = latest.length > 0;
