@@ -227,6 +227,7 @@ function draw() {
 function showScreen(name) {
   document.querySelectorAll(".screen").forEach((screen) => screen.classList.toggle("active", screen.id === `screen-${name}`));
   document.querySelectorAll(".tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.screen === name));
+  $("#add-button").hidden = name !== "home";
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
