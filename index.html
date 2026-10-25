@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f5f6f2">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Капеєчка">
+  <title>Капеєчка</title>
+  <link rel="manifest" href="static/manifest.webmanifest">
+  <link rel="icon" href="static/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+  <div class="app" id="app" hidden>
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">₴</span><span>капеєчка</span></div>
+      <span class="local-badge">Збережено на iPhone</span>
+    </header>
+
+    <main>
+      <section class="screen active" id="screen-home">
+        <div class="welcome-row"><div><p class="eyebrow" id="today-label">ТВІЙ БЮДЖЕТ</p><h1>Огляд</h1></div></div>
+        <div class="month-switch compact">
+          <button class="month-arrow" data-shift="-1" aria-label="Попередній місяць">‹</button>
+          <span id="home-month"></span>
+          <button class="month-arrow" data-shift="1" aria-label="Наступний місяць">›</button>
+        </div>
+        <article class="balance-card">
+          <span class="card-label">Залишок за місяць</span>
+          <strong id="balance">0,00 zł</strong>
+          <div class="balance-foot"><span id="month-short"></span><span class="balance-dot">●</span></div>
+        </article>
+        <div class="summary-grid">
+          <article class="summary-card"><span class="summary-icon income-icon">↙</span><span class="muted">Доходи</span><strong id="income-total">0,00 zł</strong></article>
+          <article class="summary-card"><span class="summary-icon expense-icon">↗</span><span class="muted">Витрати</span><strong id="expense-total">0,00 zł</strong></article>
+        </div>
+        <div class="section-heading"><div><p class="eyebrow">ОСТАННІ ЗАПИСИ</p><h2>Операції</h2></div><button class="text-button" data-open="history">Усі <span>→</span></button></div>
+        <div class="transaction-list" id="recent-list"></div>
+        <div class="empty-state" id="home-empty" hidden><span>☼</span><b>Поки записів немає</b><p>Додай першу операцію, і вона з’явиться тут.</p></div>
+      </section>
+
+      <section class="screen" id="screen-history">
+        <p class="eyebrow">ТВОЇ ЗАПИСИ</p><h1>Історія</h1>
+        <div class="month-switch">
+          <button class="month-arrow" data-shift="-1" aria-label="Попередній місяць">‹</button>
+          <span id="history-month"></span>
+          <button class="month-arrow" data-shift="1" aria-label="Наступний місяць">›</button>
+        </div>
+        <div class="filter-tabs" id="type-tabs">
+          <button class="filter active" data-kind="all">Усі</button><button class="filter" data-kind="expense">Витрати</button><button class="filter" data-kind="income">Доходи</button>
+        </div>
+        <label class="select-wrap" id="category-filter-wrap" hidden><span>Категорія витрат</span><select id="category-filter"><option value="">Усі категорії</option></select></label>
+        <div class="history-caption"><span id="history-caption"></span><span id="history-count"></span></div>
+        <div class="transaction-list" id="history-list"></div>
+        <div class="empty-state" id="history-empty" hidden><span>⌕</span><b>Тут поки порожньо</b><p>За вибраний період операцій немає.</p></div>
+      </section>
+
+      <section class="screen" id="screen-categories">
+        <p class="eyebrow">ОРГАНІЗУЙ СВОЇ ВИТРАТИ</p><h1>Категорії</h1>
+        <div class="category-month"><span>Витрати за</span><b id="category-month"></b></div>
+        <div class="category-list" id="category-list"></div>
+        <form class="add-category" id="category-form"><input id="category-name" maxlength="48" placeholder="Наприклад, 🐈 Кіт" autocomplete="off"><button aria-label="Додати категорію">＋</button></form>
+        <p class="helper">Нові категорії одразу з’являться у формі витрат.</p>
+      </section>
+    </main>
+
+    <button class="fab" id="add-button" aria-label="Додати операцію">＋</button>
+    <nav class="tabbar" aria-label="Основна навігація">
+      <button class="tab active" data-screen="home"><span class="tab-icon">◫</span><span>Огляд</span></button>
+      <button class="tab" data-screen="history"><span class="tab-icon">↕</span><span>Історія</span></button>
+      <button class="tab" data-screen="categories"><span class="tab-icon">⌗</span><span>Категорії</span></button>
+    </nav>
+  </div>
+
+  <div class="login-screen" id="login-screen" hidden>
+    <div class="login-card">
+      <div class="brand login-brand"><span class="brand-mark">₴</span><span>капеєчка</span></div>
+      <p class="eyebrow">ТВОЇ ФІНАНСИ ПІД РУКОЮ</p><h1>Привіт 👋</h1><p class="login-note">Увійди, щоб побачити свій бюджет.</p>
+      <form id="login-form"><label for="password">Пароль</label><input id="password" type="password" autocomplete="current-password" placeholder="Введи пароль"><button class="primary-button">Увійти <span>→</span></button><p class="form-error" id="login-error" hidden></p></form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="transaction-modal" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-handle"></div><div class="modal-heading"><div><p class="eyebrow" id="modal-eyebrow">НОВА ОПЕРАЦІЯ</p><h2 id="modal-title">Додати запис</h2></div><button class="close-button" id="close-modal" aria-label="Закрити">×</button></div>
+      <div class="form-switch" id="form-switch"><button class="active" data-form-kind="expense">💸 Витрата</button><button data-form-kind="income">💰 Дохід</button></div>
+      <form id="transaction-form">
+        <label class="field-label" for="amount">Сума</label><div class="amount-field"><span>zł</span><input id="amount" inputmode="decimal" type="text" placeholder="0,00" required></div>
+        <label class="field-label" id="category-label" for="transaction-category">Категорія</label><select id="transaction-category" required></select><input id="income-source" placeholder="Наприклад, зарплата" autocomplete="off" hidden>
+        <label class="field-label" for="description" id="description-label">Опис <span>необов’язково</span></label><input id="description" placeholder="Наприклад, продуктовий магазин" autocomplete="off">
+        <label class="field-label" for="transaction-date">Дата</label><input id="transaction-date" type="date" required>
+        <button class="primary-button save-button" id="save-button">Зберегти запис <span>→</span></button>
+        <button class="delete-button" id="delete-button" type="button" hidden>Видалити операцію</button>
+      </form>
+    </section>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="static/app.js" defer></script>
+</body>
+</html>
