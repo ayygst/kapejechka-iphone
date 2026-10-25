@@ -5,7 +5,7 @@ function localDateString() {
 }
 const STORAGE_KEY = "kapejechka-local-v1";
 const DEFAULT_CATEGORIES = ["🍔 Їжа", "🛒 Продукти", "🚕 Транспорт", "🏠 Дім", "💊 Здоров'я", "🎮 Розваги", "🛍️ Покупки", "📱 Підписки", "💳 Платежі", "✈️ Подорожі", "🎁 Подарунки", "📦 Інше"];
-const state = { month: localDateString().slice(0, 7), kind: "all", category: "", data: null, editId: null, formKind: "expense" };
+const state = { month: localDateString().slice(0, 7), kind: "all", category: "", data: null, editId: null, formKind: "expense", historyView: "transactions", selectedCategory: "", chartType: "categories" };
 const monthNames = ["Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень", "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"];
 let toastTimer;
 
@@ -120,29 +120,29 @@ function fillCategorySelect(select, selected = "") {
   select.innerHTML = categories.map((name) => `<option value="${escapeHtml(name)}" ${name === selected ? "selected" : ""}>${escapeHtml(name)}</option>`).join("");
 }
 
-function renderCharts(data) {
-  const colors = ["#245d4d", "#74a987", "#d9b775", "#d88b68", "#8a9bc9", "#aa83b8", "#69aeb2", "#d5a8a0"];
-  const rows = data.category_totals.filter((row) => Number(row.total) > 0);
-  const total = rows.reduce((sum, row) => sum + Number(row.total), 0);
-  $("#analytics-month").textContent = monthLabel(state.month);
-  $("#donut-total").textContent = money(total);
-  $("#chart-empty").hidden = total > 0;
+const CHART_COLORS = ["#5eaa86", "#d2b56f", "#d98366", "#8599c9", "#b184bd", "#63a8ad", "#d5a2a0", "#96b36d", "#d09b5e", "#8babbc", "#c87994", "#a0a8d2"];
 
+function renderDonut(donutSelector, totalSelector, legendSelector, emptySelector, values, showAll = false) {
+  const rows = values.filter((row) => Number(row.total) > 0);
+  const total = rows.reduce((sum, row) => sum + Number(row.total), 0);
+  $(totalSelector).textContent = money(total);
+  $(emptySelector).hidden = total > 0;
   let cursor = 0;
   const slices = rows.map((row, index) => {
     const start = cursor;
     cursor += Number(row.total) / (total || 1) * 100;
-    return `${colors[index % colors.length]} ${start}% ${cursor}%`;
+    return `${CHART_COLORS[index % CHART_COLORS.length]} ${start}% ${cursor}%`;
   });
-  $("#expense-donut").style.background = slices.length ? `conic-gradient(${slices.join(", ")})` : "conic-gradient(#e8ebe5 0% 100%)";
-
-  const shown = rows.slice(0, 4);
-  const rest = rows.slice(4);
-  const legendRows = shown.map((row, index) => ({ name: row.name, total: Number(row.total), color: colors[index % colors.length] }));
-  if (rest.length) legendRows.push({ name: "Інші", total: rest.reduce((sum, row) => sum + Number(row.total), 0), color: "#b8c6be" });
-  $("#expense-legend").innerHTML = legendRows.map((row) => `<div class="legend-row"><span class="legend-dot" style="background:${row.color}"></span><span class="legend-name">${escapeHtml(row.name)}</span><strong>${escapeHtml(money(row.total))}</strong></div>`).join("")
+  $(donutSelector).style.background = slices.length ? `conic-gradient(${slices.join(", ")})` : "conic-gradient(#333d37 0% 100%)";
+  const shown = showAll ? rows : rows.slice(0, 4);
+  const legendRows = shown.map((row, index) => ({ name: row.name, total: Number(row.total), color: CHART_COLORS[index % CHART_COLORS.length] }));
+  if (!showAll && rows.length > 4) legendRows.push({ name: "Інші", total: rows.slice(4).reduce((sum, row) => sum + Number(row.total), 0), color: "#59665f" });
+  $(legendSelector).innerHTML = legendRows.map((row) => `<div class="legend-row"><span class="legend-dot" style="background:${row.color}"></span><span class="legend-name">${escapeHtml(row.name)}</span><strong>${escapeHtml(money(row.total))}</strong></div>`).join("")
     || '<span class="legend-placeholder">Поки без витрат</span>';
+  return total;
+}
 
+function renderFlowChart(container, data) {
   const income = Number(data.income.amount) || 0;
   const expenses = Number(data.expenses.amount) || 0;
   const max = Math.max(income, expenses);
@@ -150,7 +150,33 @@ function renderCharts(data) {
     const width = max ? Math.max(value > 0 ? 4 : 0, value / max * 100) : 0;
     return `<div class="flow-row"><div class="flow-meta"><span>${label}</span><strong>${escapeHtml(money(value))}</strong></div><div class="flow-track"><span class="flow-bar ${type}" style="width:${width}%"></span></div></div>`;
   };
-  $("#flow-chart").innerHTML = bar("Доходи", income, "income") + bar("Витрати", expenses, "expense");
+  $(container).innerHTML = bar("Доходи", income, "income") + bar("Витрати", expenses, "expense");
+}
+
+function renderCategoryHistory(data) {
+  const rows = data.category_totals.filter((row) => Number(row.total) > 0);
+  const selected = rows.find((row) => row.name === state.selectedCategory);
+  $("#history-categories-empty").hidden = rows.length > 0;
+  $("#history-category-list").hidden = Boolean(selected);
+  $("#history-category-detail").hidden = !selected;
+  if (!selected) {
+    state.selectedCategory = "";
+    $("#history-category-list").innerHTML = rows.map((row, index) => `<button class="category-row category-pick" type="button" data-category="${escapeHtml(row.name)}"><span class="category-pick-main"><span class="legend-dot" style="background:${CHART_COLORS[index % CHART_COLORS.length]}"></span><span><span class="category-name">${escapeHtml(row.name)}</span><span class="category-count">${row.count} операцій · відкрити</span></span></span><span class="category-total">${escapeHtml(money(row.total))}<span class="category-chevron">›</span></span></button>`).join("");
+    return;
+  }
+  $("#history-category-title").textContent = selected.name;
+  $("#history-category-total").textContent = `${money(selected.total)} · ${selected.count} операцій`;
+  const items = data.transactions.filter((item) => item.kind === "expense" && item.category === selected.name);
+  $("#history-category-transactions").innerHTML = items.map(transactionMarkup).join("");
+  $("#history-category-empty").hidden = items.length > 0;
+}
+
+function renderHistoryChart(data) {
+  const categories = state.chartType === "categories";
+  $("#history-chart-categories").hidden = !categories;
+  $("#history-chart-comparison").hidden = categories;
+  if (categories) renderDonut("#history-expense-donut", "#history-donut-total", "#history-expense-legend", "#history-chart-empty", data.category_totals, true);
+  else renderFlowChart("#history-flow-chart", data);
 }
 
 function draw() {
@@ -165,7 +191,8 @@ function draw() {
   $("#balance").classList.toggle("negative", total < 0);
   $("#income-total").textContent = money(data.income.amount);
   $("#expense-total").textContent = money(data.expenses.amount);
-  renderCharts(data);
+  $("#analytics-month").textContent = monthLabel(state.month);
+  renderDonut("#home-expense-donut", "#donut-total", "#home-expense-legend", "#home-chart-empty", data.category_totals);
   const latest = [...data.transactions].sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id - a.id);
   $("#recent-list").innerHTML = latest.slice(0, 5).map(transactionMarkup).join("");
   $("#home-empty").hidden = latest.length > 0;
@@ -188,6 +215,13 @@ function draw() {
   $("#history-count").textContent = `${filtered.length}${data.transactions.length === 300 ? "+" : ""} записів`;
   $("#history-list").innerHTML = filtered.map(transactionMarkup).join("");
   $("#history-empty").hidden = filtered.length > 0;
+  document.querySelectorAll("#history-view-tabs .filter").forEach((button) => button.classList.toggle("active", button.dataset.historyView === state.historyView));
+  $("#history-transactions-view").hidden = state.historyView !== "transactions";
+  $("#history-categories-view").hidden = state.historyView !== "categories";
+  $("#history-charts-view").hidden = state.historyView !== "charts";
+  $("#history-chart-select").value = state.chartType;
+  renderCategoryHistory(data);
+  renderHistoryChart(data);
 }
 
 function showScreen(name) {
@@ -282,6 +316,21 @@ $("#type-tabs").addEventListener("click", (event) => {
   if (state.kind !== "expense") state.category = "";
   draw();
 });
+$("#history-view-tabs").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-history-view]");
+  if (!button) return;
+  state.historyView = button.dataset.historyView;
+  state.selectedCategory = "";
+  draw();
+});
+$("#history-chart-select").addEventListener("change", (event) => { state.chartType = event.target.value; draw(); });
+$("#history-category-list").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-category]");
+  if (!button) return;
+  state.selectedCategory = button.dataset.category;
+  draw();
+});
+$("#category-back").addEventListener("click", () => { state.selectedCategory = ""; draw(); });
 $("#category-filter").addEventListener("change", (event) => { state.category = event.target.value; draw(); });
 $("#recent-list").addEventListener("click", handleTransactionAction);
 $("#history-list").addEventListener("click", handleTransactionAction);
