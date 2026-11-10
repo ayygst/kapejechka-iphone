@@ -79,3 +79,12 @@ body{background:var(--paper);color:var(--ink)}
 .tabbar{box-shadow:0 -5px 20px rgba(0,0,0,.18)}
 .analytics-card{box-shadow:0 6px 20px rgba(0,0,0,.16)}
 @media(max-width:390px){.donut-layout{grid-template-columns:116px minmax(0,1fr);gap:12px}.donut-chart{width:116px;height:116px}.history-donut-layout{grid-template-columns:116px minmax(0,1fr)}}
+
+.period-toggle{display:block;margin:-8px 0 13px auto;border:0;background:transparent;color:#9bd0ad;font-size:12px;font-weight:700;padding:7px 2px}
+.period-picker{margin:0 0 15px;padding:14px;background:#1b221e;border:1px solid var(--line);border-radius:17px}
+.period-picker .select-wrap{margin-bottom:10px}
+.period-picker input,.period-picker select{min-width:0;width:100%;border:1px solid #3a453e;border-radius:12px;background:#202823;color:var(--ink);padding:10px 11px;font:inherit;font-size:13px;color-scheme:dark}
+.period-range{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.period-range .select-wrap{display:block}
+.period-range .select-wrap span{display:block;margin:0 0 6px}
+.period-apply{margin-top:5px;padding:11px 14px;font-size:12px}
