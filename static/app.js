@@ -5,7 +5,7 @@ function localDateString() {
 }
 const STORAGE_KEY = "kapejechka-local-v1";
 const DEFAULT_CATEGORIES = ["🍔 Їжа", "🛒 Продукти", "🚕 Транспорт", "🏠 Дім", "💊 Здоров'я", "🎮 Розваги", "🛍️ Покупки", "📱 Підписки", "💳 Платежі", "✈️ Подорожі", "🎁 Подарунки", "📦 Інше"];
-const state = { month: localDateString().slice(0, 7), kind: "all", category: "", data: null, editId: null, formKind: "expense", historyView: "transactions", selectedCategory: "", chartType: "categories" };
+const state = { month: localDateString().slice(0, 7), kind: "all", category: "", data: null, historyData: null, editId: null, formKind: "expense", historyView: "transactions", selectedCategory: "", chartType: "categories", historyPeriod: "month", historyDate: localDateString(), historyStart: localDateString(), historyEnd: localDateString() };
 const monthNames = ["Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень", "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"];
 let toastTimer;
 
@@ -23,6 +23,68 @@ function shiftMonth(amount) {
   const date = new Date(year, month - 1 + amount, 1);
   state.month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
   refresh();
+}
+
+function dateString(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function addDays(value, amount) {
+  const date = new Date(`${value}T12:00:00`);
+  date.setDate(date.getDate() + amount);
+  return dateString(date);
+}
+
+function historyRange() {
+  if (state.historyPeriod === "month") {
+    const [year, month] = state.month.split("-").map(Number);
+    return { start: `${state.month}-01`, end: dateString(new Date(year, month, 0)) };
+  }
+  if (state.historyPeriod === "day") return { start: state.historyDate, end: state.historyDate };
+  if (state.historyPeriod === "week") {
+    const weekday = new Date(`${state.historyDate}T12:00:00`).getDay();
+    const start = addDays(state.historyDate, -((weekday + 6) % 7));
+    return { start, end: addDays(start, 6) };
+  }
+  return { start: state.historyStart, end: state.historyEnd };
+}
+
+function formatFullDate(value) {
+  const date = new Date(`${value}T12:00:00`);
+  return new Intl.DateTimeFormat("uk-UA", { day: "numeric", month: "long", year: "numeric" }).format(date);
+}
+
+function historyPeriodLabel() {
+  const { start, end } = historyRange();
+  if (state.historyPeriod === "month") return monthLabel(state.month);
+  if (start === end) return formatFullDate(start);
+  return `${dateLabel(start)} – ${dateLabel(end)} ${new Date(`${end}T12:00:00`).getFullYear()}`;
+}
+
+function shiftHistoryPeriod(amount) {
+  if (state.historyPeriod === "month") {
+    const [year, month] = state.month.split("-").map(Number);
+    const date = new Date(year, month - 1 + amount, 1);
+    state.month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  } else if (state.historyPeriod === "day") {
+    state.historyDate = addDays(state.historyDate, amount);
+  } else if (state.historyPeriod === "week") {
+    state.historyDate = addDays(state.historyDate, amount * 7);
+  } else {
+    const { start, end } = historyRange();
+    const length = Math.max(1, Math.round((new Date(`${end}T12:00:00`) - new Date(`${start}T12:00:00`)) / 86400000) + 1);
+    state.historyStart = addDays(start, amount * length);
+    state.historyEnd = addDays(end, amount * length);
+  }
+  state.selectedCategory = "";
+  refresh();
+}
+
+function syncPeriodInputs() {
+  const mode = $("#history-period-mode").value;
+  const singleDate = mode === "day" || mode === "week";
+  $("#history-period-date-wrap").hidden = !singleDate;
+  $("#history-period-range").hidden = mode !== "custom";
 }
 
 function money(value) {
@@ -47,8 +109,14 @@ async function api(path, options = {}) {
   const save = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
   const method = options.method || "GET";
   if (path.startsWith("/api/data")) {
-    const month = new URLSearchParams(path.split("?")[1] || "").get("month") || state.month;
-    const transactions = db.transactions.filter((item) => String(item.created_at).slice(0, 7) === month).sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id - a.id);
+    const params = new URLSearchParams(path.split("?")[1] || "");
+    const month = params.get("month") || state.month;
+    const start = params.get("from");
+    const end = params.get("to");
+    const transactions = db.transactions.filter((item) => {
+      const date = String(item.created_at).slice(0, 10);
+      return start && end ? date >= start && date <= end : date.slice(0, 7) === month;
+    }).sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id - a.id);
     const expenses = transactions.filter((item) => item.kind === "expense");
     const income = transactions.filter((item) => item.kind === "income");
     const grouped = new Map();
@@ -96,7 +164,11 @@ async function enterApp(csrf) {
 
 async function refresh() {
   try {
-    state.data = await api(`/api/data?month=${encodeURIComponent(state.month)}&kind=all`);
+    const range = historyRange();
+    [state.data, state.historyData] = await Promise.all([
+      api(`/api/data?month=${encodeURIComponent(state.month)}&kind=all`),
+      api(`/api/data?from=${encodeURIComponent(range.start)}&to=${encodeURIComponent(range.end)}`),
+    ]);
     draw();
   } catch (error) {
     if (error.message) toast(error.message);
@@ -157,6 +229,7 @@ function renderCategoryHistory(data) {
   const rows = data.category_totals.filter((row) => Number(row.total) > 0);
   const selected = rows.find((row) => row.name === state.selectedCategory);
   $("#history-categories-empty").hidden = rows.length > 0;
+  $("#history-categories-empty b").textContent = `За цей період витрат немає`;
   $("#history-category-list").hidden = Boolean(selected);
   $("#history-category-detail").hidden = !selected;
   if (!selected) {
@@ -184,7 +257,13 @@ function draw() {
   const data = state.data;
   const total = data.income.amount - data.expenses.amount;
   $("#home-month").textContent = monthLabel(state.month);
-  $("#history-month").textContent = monthLabel(state.month);
+  $("#history-month").textContent = historyPeriodLabel();
+  $("#period-toggle").textContent = `⋯ Інший період · ${{ month: "Місяць", day: "День", week: "Тиждень", custom: "Діапазон" }[state.historyPeriod]}`;
+  $("#history-period-mode").value = state.historyPeriod;
+  $("#history-period-date").value = state.historyDate;
+  $("#history-period-start").value = state.historyStart;
+  $("#history-period-end").value = state.historyEnd;
+  syncPeriodInputs();
   $("#category-month").textContent = monthLabel(state.month);
   $("#month-short").textContent = monthLabel(state.month);
   $("#balance").textContent = money(total);
@@ -203,6 +282,7 @@ function draw() {
     return `<article class="category-row"><div class="category-name">${escapeHtml(name)}</div><div class="category-total">${escapeHtml(money(row.total))}<div class="category-count">${row.count} операцій</div></div></article>`;
   }).join("");
 
+  const historyData = state.historyData || data;
   const categoryFilter = $("#category-filter");
   const oldFilter = state.category;
   categoryFilter.innerHTML = `<option value="">Усі категорії</option>${data.categories.map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("")}`;
@@ -210,9 +290,9 @@ function draw() {
   state.category = categoryFilter.value;
   $("#category-filter-wrap").hidden = state.kind !== "expense";
   document.querySelectorAll("#type-tabs .filter").forEach((button) => button.classList.toggle("active", button.dataset.kind === state.kind));
-  const filtered = data.transactions.filter((item) => (state.kind === "all" || item.kind === state.kind) && (!state.category || item.category === state.category));
+  const filtered = historyData.transactions.filter((item) => (state.kind === "all" || item.kind === state.kind) && (!state.category || item.category === state.category));
   $("#history-caption").textContent = state.category || ({ all: "Усі операції", expense: "Витрати", income: "Доходи" })[state.kind];
-  $("#history-count").textContent = `${filtered.length}${data.transactions.length === 300 ? "+" : ""} записів`;
+  $("#history-count").textContent = `${filtered.length}${historyData.transactions.length === 300 ? "+" : ""} записів`;
   $("#history-list").innerHTML = filtered.map(transactionMarkup).join("");
   $("#history-empty").hidden = filtered.length > 0;
   document.querySelectorAll("#history-view-tabs .filter").forEach((button) => button.classList.toggle("active", button.dataset.historyView === state.historyView));
@@ -220,8 +300,8 @@ function draw() {
   $("#history-categories-view").hidden = state.historyView !== "categories";
   $("#history-charts-view").hidden = state.historyView !== "charts";
   $("#history-chart-select").value = state.chartType;
-  renderCategoryHistory(data);
-  renderHistoryChart(data);
+  renderCategoryHistory(historyData);
+  renderHistoryChart(historyData);
 }
 
 function showScreen(name) {
@@ -273,7 +353,7 @@ async function handleTransactionAction(event) {
   const edit = event.target.closest("[data-edit]");
   const remove = event.target.closest("[data-delete]");
   if (edit) {
-    const item = state.data.transactions.find((row) => String(row.id) === edit.dataset.edit);
+    const item = [...(state.data?.transactions || []), ...(state.historyData?.transactions || [])].find((row) => String(row.id) === edit.dataset.edit);
     if (item) openModal(item);
   }
   if (remove) {
@@ -308,8 +388,31 @@ $("#login-form").addEventListener("submit", async (event) => {
 });
 
 document.querySelectorAll("[data-shift]").forEach((button) => button.addEventListener("click", () => shiftMonth(Number(button.dataset.shift))));
+document.querySelectorAll("[data-history-shift]").forEach((button) => button.addEventListener("click", () => shiftHistoryPeriod(Number(button.dataset.historyShift))));
 document.querySelectorAll(".tab").forEach((button) => button.addEventListener("click", () => showScreen(button.dataset.screen)));
 document.querySelectorAll("[data-open]").forEach((button) => button.addEventListener("click", () => showScreen(button.dataset.open)));
+$("#period-toggle").addEventListener("click", () => {
+  const panel = $("#period-picker");
+  panel.hidden = !panel.hidden;
+  $("#period-toggle").setAttribute("aria-expanded", String(!panel.hidden));
+});
+$("#history-period-mode").addEventListener("change", syncPeriodInputs);
+$("#period-apply").addEventListener("click", () => {
+  const mode = $("#history-period-mode").value;
+  if (mode === "day" || mode === "week") state.historyDate = $("#history-period-date").value || localDateString();
+  if (mode === "custom") {
+    const start = $("#history-period-start").value;
+    const end = $("#history-period-end").value;
+    if (!start || !end || start > end) { toast("Перевір дати періоду."); return; }
+    state.historyStart = start;
+    state.historyEnd = end;
+  }
+  state.historyPeriod = mode;
+  state.selectedCategory = "";
+  $("#period-picker").hidden = true;
+  $("#period-toggle").setAttribute("aria-expanded", "false");
+  refresh();
+});
 $("#type-tabs").addEventListener("click", (event) => {
   const button = event.target.closest("[data-kind]");
   if (!button) return;
