@@ -10,7 +10,7 @@
   <title>Капеєчка</title>
   <link rel="manifest" href="static/manifest.webmanifest?v=3">
   <link rel="icon" href="static/icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="static/style.css?v=4">
+  <link rel="stylesheet" href="static/style.css?v=5">
 </head>
 <body>
   <div class="app" id="app" hidden>
@@ -56,10 +56,17 @@
       <section class="screen" id="screen-history">
         <p class="eyebrow">ТВОЇ ЗАПИСИ</p><h1>Історія</h1>
         <div class="month-switch">
-          <button class="month-arrow" data-shift="-1" aria-label="Попередній місяць">‹</button>
+          <button class="month-arrow" data-history-shift="-1" aria-label="Попередній період">‹</button>
           <span id="history-month"></span>
-          <button class="month-arrow" data-shift="1" aria-label="Наступний місяць">›</button>
+          <button class="month-arrow" data-history-shift="1" aria-label="Наступний період">›</button>
         </div>
+        <button class="period-toggle" id="period-toggle" type="button" aria-expanded="false">⋯ Інший період</button>
+        <section class="period-picker" id="period-picker" hidden>
+          <label class="select-wrap"><span>Період</span><select id="history-period-mode"><option value="month">Місяць</option><option value="day">День</option><option value="week">Тиждень</option><option value="custom">Діапазон дат</option></select></label>
+          <label class="select-wrap" id="history-period-date-wrap" hidden><span>Дата</span><input id="history-period-date" type="date"></label>
+          <div class="period-range" id="history-period-range" hidden><label class="select-wrap"><span>Від</span><input id="history-period-start" type="date"></label><label class="select-wrap"><span>До</span><input id="history-period-end" type="date"></label></div>
+          <button class="primary-button period-apply" id="period-apply" type="button">Показати період</button>
+        </section>
         <div class="filter-tabs history-view-tabs" id="history-view-tabs">
           <button class="filter active" data-history-view="transactions">Операції</button><button class="filter" data-history-view="categories">Категорії</button><button class="filter" data-history-view="charts">Діаграми</button>
         </div>
@@ -139,6 +146,6 @@
     </section>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="static/app.js?v=5" defer></script>
+  <script src="static/app.js?v=6" defer></script>
 </body>
 </html>
